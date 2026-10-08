@@ -1,0 +1,19 @@
+build/
+*.class
+*.log
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Arquivos locais e artefatos de documentação
+ALUNO.txt
+relatorio/
+resultados/
+tools/
+*.tex
+*.doc
+*.docx
+*.pdf
+*.zip
+

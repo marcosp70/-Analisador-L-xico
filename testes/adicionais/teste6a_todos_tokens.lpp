@@ -1,0 +1,24 @@
+{ Teste adicional com todos os grupos de tokens }
+program teste6a
+numero, resto = int;
+media, metade = float;
+opcao = char;
+begin
+  numero = 10;
+  media = numero / 2;
+  metade = 2.5;
+  resto = numero % 3;
+  opcao = 'S';
+  if numero >= 0 && numero != 1 then
+    write("resultado valido")
+  else
+    write(media)
+  end;
+  repeat
+    numero = numero - 1
+  until numero == 0;
+  while numero < 10 || !numero > 20 do
+    numero = numero + 1
+  end
+end.
+

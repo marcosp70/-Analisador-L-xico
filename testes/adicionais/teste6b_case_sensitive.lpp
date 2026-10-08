@@ -1,0 +1,13 @@
+{ Teste adicional de identificadores, caixa e comentário multilinha
+  A tabela deve diferenciar valor, Valor e _valor2. }
+program teste6b
+valor, Valor, _valor2 = int;
+letra = char;
+begin
+  valor = 1;
+  Valor = valor * 2;
+  _valor2 = Valor / 2;
+  letra = 'x';
+  write("fim")
+end.
+
