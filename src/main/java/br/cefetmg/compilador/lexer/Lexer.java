@@ -3,280 +3,318 @@ package br.cefetmg.compilador.lexer;
 import br.cefetmg.compilador.symbols.Symbol;
 import br.cefetmg.compilador.symbols.SymbolTable;
 
-import java.util.Objects;
-
-/**
- * Analisador léxico manual. O reconhecimento é codificado diretamente a partir
- * dos diagramas de transição, sem geradores de analisadores.
- */
-public final class Lexer {
-    private final String source;
-    private final SymbolTable symbolTable;
-    private int index = 0;
+// Analisador lexico feito a mao, seguindo os automatos de cada token.
+// Le o codigo fonte caractere por caractere e devolve um token por chamada de nextToken().
+public class Lexer {
+    private String source;
+    private SymbolTable symbolTable;
+    private int pos = 0;     // posicao atual no texto
     private int line = 1;
     private int column = 1;
 
     public Lexer(String source, SymbolTable symbolTable) {
-        this.source = Objects.requireNonNull(source);
-        this.symbolTable = Objects.requireNonNull(symbolTable);
+        this.source = source;
+        this.symbolTable = symbolTable;
     }
 
     public Token nextToken() {
-        skipIgnored();
+        skipSpacesAndComments();
 
-        if (isAtEnd()) {
+        if (isEnd()) {
             return new Token(TokenType.EOF, "", line, column, null);
         }
 
-        int start = index;
+        // guarda onde o token comeca, para o lexema e para as mensagens de erro
+        int start = pos;
         int startLine = line;
         int startColumn = column;
-        char c = advance();
+        char c = next();
 
-        if (isAsciiLetter(c) || c == '_') {
-            return scanIdentifier(start, startLine, startColumn);
+        if (isLetter(c) || c == '_') {
+            return readIdentifier(start, startLine, startColumn);
+        }
+        if (isDigit(c)) {
+            return readNumber(start, startLine, startColumn);
+        }
+        if (Character.isLetterOrDigit(c)) {
+            // letra acentuada ou outro caractere fora do ASCII
+            skipWord();
+            String word = source.substring(start, pos);
+            throw new LexicalException("identificador contém caractere fora de [A-Za-z0-9_]: '"
+                    + word + "'", startLine, startColumn, false);
+        }
+        if (c == '\'') {
+            return readChar(startLine, startColumn);
+        }
+        if (c == '"') {
+            return readLiteral(startLine, startColumn);
         }
 
-        if (Character.isLetter(c) || Character.isDigit(c) && !isAsciiDigit(c)) {
-            consumeUnicodeWordTail();
-            String invalid = source.substring(start, index);
-            throw error("identificador contém caractere fora de [A-Za-z0-9_]: '"
-                    + printable(invalid) + "'", startLine, startColumn, false);
-        }
-
-        if (isAsciiDigit(c)) {
-            return scanNumber(start, startLine, startColumn);
-        }
-
-        return switch (c) {
-            case '\'' -> scanChar(startLine, startColumn);
-            case '"' -> scanLiteral(startLine, startColumn);
-            case '=' -> match('=')
-                    ? token(TokenType.EQUAL, start, startLine, startColumn, null)
-                    : token(TokenType.ASSIGN, start, startLine, startColumn, null);
-            case '>' -> match('=')
-                    ? token(TokenType.GREATER_EQUAL, start, startLine, startColumn, null)
-                    : token(TokenType.GREATER, start, startLine, startColumn, null);
-            case '<' -> match('=')
-                    ? token(TokenType.LESS_EQUAL, start, startLine, startColumn, null)
-                    : token(TokenType.LESS, start, startLine, startColumn, null);
-            case '!' -> match('=')
-                    ? token(TokenType.NOT_EQUAL, start, startLine, startColumn, null)
-                    : token(TokenType.NOT, start, startLine, startColumn, null);
-            case '|' -> {
-                if (!match('|')) {
-                    throw error("operador '|' incompleto; use '||'", startLine, startColumn, false);
-                }
-                yield token(TokenType.OR, start, startLine, startColumn, null);
+        // operadores de dois caracteres: olha o proximo para decidir
+        if (c == '=') {
+            if (nextIs('=')) {
+                return makeToken(TokenType.EQUAL, start, startLine, startColumn);
             }
-            case '&' -> {
-                if (!match('&')) {
-                    throw error("operador '&' incompleto; use '&&'", startLine, startColumn, false);
-                }
-                yield token(TokenType.AND, start, startLine, startColumn, null);
+            return makeToken(TokenType.ASSIGN, start, startLine, startColumn);
+        }
+        if (c == '>') {
+            if (nextIs('=')) {
+                return makeToken(TokenType.GREATER_EQUAL, start, startLine, startColumn);
             }
-            case '+' -> token(TokenType.PLUS, start, startLine, startColumn, null);
-            case '-' -> token(TokenType.MINUS, start, startLine, startColumn, null);
-            case '*' -> token(TokenType.MULTIPLY, start, startLine, startColumn, null);
-            case '/' -> token(TokenType.DIVIDE, start, startLine, startColumn, null);
-            case '%' -> token(TokenType.MODULO, start, startLine, startColumn, null);
-            case ',' -> token(TokenType.COMMA, start, startLine, startColumn, null);
-            case ';' -> token(TokenType.SEMICOLON, start, startLine, startColumn, null);
-            case '(' -> token(TokenType.LEFT_PAREN, start, startLine, startColumn, null);
-            case ')' -> token(TokenType.RIGHT_PAREN, start, startLine, startColumn, null);
-            case '.' -> token(TokenType.DOT, start, startLine, startColumn, null);
-            case '{' -> throw error("comentário deve começar com '{*'",
-                    startLine, startColumn, false);
-            default -> throw error("caractere não reconhecido: '" + printable(c) + "'",
-                    startLine, startColumn, false);
-        };
+            return makeToken(TokenType.GREATER, start, startLine, startColumn);
+        }
+        if (c == '<') {
+            if (nextIs('=')) {
+                return makeToken(TokenType.LESS_EQUAL, start, startLine, startColumn);
+            }
+            return makeToken(TokenType.LESS, start, startLine, startColumn);
+        }
+        if (c == '!') {
+            if (nextIs('=')) {
+                return makeToken(TokenType.NOT_EQUAL, start, startLine, startColumn);
+            }
+            return makeToken(TokenType.NOT, start, startLine, startColumn);
+        }
+        if (c == '|') {
+            if (nextIs('|')) {
+                return makeToken(TokenType.OR, start, startLine, startColumn);
+            }
+            throw new LexicalException("operador '|' incompleto; use '||'", startLine, startColumn, false);
+        }
+        if (c == '&') {
+            if (nextIs('&')) {
+                return makeToken(TokenType.AND, start, startLine, startColumn);
+            }
+            throw new LexicalException("operador '&' incompleto; use '&&'", startLine, startColumn, false);
+        }
+
+        // operadores e pontuacao de um caractere
+        if (c == '+') {
+            return makeToken(TokenType.PLUS, start, startLine, startColumn);
+        } else if (c == '-') {
+            return makeToken(TokenType.MINUS, start, startLine, startColumn);
+        } else if (c == '*') {
+            return makeToken(TokenType.MULTIPLY, start, startLine, startColumn);
+        } else if (c == '/') {
+            return makeToken(TokenType.DIVIDE, start, startLine, startColumn);
+        } else if (c == '%') {
+            return makeToken(TokenType.MODULO, start, startLine, startColumn);
+        } else if (c == ',') {
+            return makeToken(TokenType.COMMA, start, startLine, startColumn);
+        } else if (c == ';') {
+            return makeToken(TokenType.SEMICOLON, start, startLine, startColumn);
+        } else if (c == '(') {
+            return makeToken(TokenType.LEFT_PAREN, start, startLine, startColumn);
+        } else if (c == ')') {
+            return makeToken(TokenType.RIGHT_PAREN, start, startLine, startColumn);
+        } else if (c == '.') {
+            return makeToken(TokenType.DOT, start, startLine, startColumn);
+        } else if (c == '{') {
+            throw new LexicalException("comentário deve começar com '{*'", startLine, startColumn, false);
+        }
+
+        throw new LexicalException("caractere não reconhecido: '" + c + "'", startLine, startColumn, false);
     }
 
-    private void skipIgnored() {
-        boolean repeat;
-        do {
-            repeat = false;
-            while (!isAtEnd() && isWhitespace(peek())) {
-                advance();
-            }
-            if (!isAtEnd() && peek() == '{' && peekNext() == '*') {
+    // pula espacos, quebras de linha e comentarios {* ... *}
+    private void skipSpacesAndComments() {
+        while (!isEnd()) {
+            char c = peek();
+            if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f') {
+                next();
+            } else if (c == '{' && peekNext() == '*') {
                 int startLine = line;
                 int startColumn = column;
-                advance();
-                advance();
-                while (!isAtEnd() && !(peek() == '*' && peekNext() == '}')) {
-                    advance();
+                next(); // {
+                next(); // *
+                while (!isEnd() && !(peek() == '*' && peekNext() == '}')) {
+                    next();
                 }
-                if (isAtEnd()) {
-                    throw error("comentário iniciado com '{*' não foi fechado com '*}'",
+                if (isEnd()) {
+                    throw new LexicalException("comentário iniciado com '{*' não foi fechado com '*}'",
                             startLine, startColumn, true);
                 }
-                advance();
-                advance();
-                repeat = true;
+                next(); // *
+                next(); // }
+            } else {
+                break;
             }
-        } while (repeat);
+        }
     }
 
-    private Token scanIdentifier(int start, int startLine, int startColumn) {
-        while (!isAtEnd() && (isAsciiLetter(peek()) || isAsciiDigit(peek()) || peek() == '_')) {
-            advance();
+    private Token readIdentifier(int start, int startLine, int startColumn) {
+        while (!isEnd() && (isLetter(peek()) || isDigit(peek()) || peek() == '_')) {
+            next();
         }
 
-        if (!isAtEnd() && Character.isLetterOrDigit(peek())) {
-            consumeUnicodeWordTail();
-            String invalid = source.substring(start, index);
-            throw error("identificador contém caractere fora de [A-Za-z0-9_]: '"
-                    + printable(invalid) + "'", startLine, startColumn, false);
+        // ex.: pontuação -> parou no 'ç', que nao e ASCII
+        if (!isEnd() && Character.isLetterOrDigit(peek())) {
+            skipWord();
+            String word = source.substring(start, pos);
+            throw new LexicalException("identificador contém caractere fora de [A-Za-z0-9_]: '"
+                    + word + "'", startLine, startColumn, false);
         }
 
-        String lexeme = source.substring(start, index);
+        String lexeme = source.substring(start, pos);
         Symbol symbol = symbolTable.find(lexeme);
         if (symbol == null) {
-            symbol = symbolTable.installIdentifier(lexeme);
+            symbol = symbolTable.addIdentifier(lexeme);
         }
-        return new Token(symbol.tokenType(), lexeme, startLine, startColumn,
-                "TS[" + symbol.index() + "]");
+        return new Token(symbol.getTokenType(), lexeme, startLine, startColumn,
+                "TS[" + symbol.getIndex() + "]");
     }
 
-    private Token scanNumber(int start, int startLine, int startColumn) {
-        while (!isAtEnd() && isAsciiDigit(peek())) {
-            advance();
+    // integer_const ::= digit+    float_const ::= digit+ "." digit+
+    private Token readNumber(int start, int startLine, int startColumn) {
+        while (!isEnd() && isDigit(peek())) {
+            next();
         }
 
-        boolean floatingPoint = false;
-        if (!isAtEnd() && peek() == '.') {
-            floatingPoint = true;
-            advance();
-            if (isAtEnd() || !isAsciiDigit(peek())) {
-                String invalid = source.substring(start, index);
-                throw error("constante float inválida: '" + printable(invalid)
+        boolean isFloat = false;
+        if (!isEnd() && peek() == '.') {
+            isFloat = true;
+            next();
+            if (isEnd() || !isDigit(peek())) {
+                String number = source.substring(start, pos);
+                throw new LexicalException("constante float inválida: '" + number
                         + "' (é necessário ao menos um dígito após o ponto)",
-                        startLine, startColumn, isAtEnd());
+                        startLine, startColumn, isEnd());
             }
-            while (!isAtEnd() && isAsciiDigit(peek())) {
-                advance();
+            while (!isEnd() && isDigit(peek())) {
+                next();
             }
         }
 
-        if (!isAtEnd() && (isAsciiLetter(peek()) || peek() == '_'
-                || Character.isLetterOrDigit(peek()))) {
-            consumeUnicodeWordTail();
-            String invalid = source.substring(start, index);
-            throw error("identificador não pode começar com dígito: '"
-                    + printable(invalid) + "'", startLine, startColumn, false);
+        // ex.: 1a, 2base -> identificador comecando com digito
+        if (!isEnd() && (Character.isLetterOrDigit(peek()) || peek() == '_')) {
+            skipWord();
+            String word = source.substring(start, pos);
+            throw new LexicalException("identificador não pode começar com dígito: '" + word + "'",
+                    startLine, startColumn, false);
         }
 
-        String lexeme = source.substring(start, index);
-        TokenType type = floatingPoint ? TokenType.FLOAT_CONST : TokenType.INTEGER_CONST;
-        return new Token(type, lexeme, startLine, startColumn, lexeme);
+        String lexeme = source.substring(start, pos);
+        if (isFloat) {
+            return new Token(TokenType.FLOAT_CONST, lexeme, startLine, startColumn, lexeme);
+        }
+        return new Token(TokenType.INTEGER_CONST, lexeme, startLine, startColumn, lexeme);
     }
 
-    private Token scanChar(int startLine, int startColumn) {
-        if (isAtEnd()) {
-            throw error("constante char não foi fechada com aspas simples",
+    // char_const ::= ' carac '   (a primeira aspa ja foi lida)
+    private Token readChar(int startLine, int startColumn) {
+        if (isEnd()) {
+            throw new LexicalException("constante char não foi fechada com aspas simples",
                     startLine, startColumn, true);
         }
         if (peek() == '\n' || peek() == '\r') {
-            advance();
-            throw error("constante char vazia ou quebrada por fim de linha",
+            next();
+            throw new LexicalException("constante char vazia ou quebrada por fim de linha",
                     startLine, startColumn, false);
         }
         if (peek() == '\'') {
-            advance();
-            throw error("constante char vazia não é permitida",
+            next();
+            throw new LexicalException("constante char vazia não é permitida",
                     startLine, startColumn, false);
         }
 
-        char value = advance();
-        if (!isAscii(value)) {
-            consumeUntilCharBoundary();
-            throw error("constante char deve conter um caractere ASCII",
-                    startLine, startColumn, isAtEnd());
+        char value = next();
+        if (value > 127) {
+            skipUntilQuote();
+            throw new LexicalException("constante char deve conter um caractere ASCII",
+                    startLine, startColumn, isEnd());
         }
-        if (isAtEnd() || peek() != '\'') {
-            consumeUntilCharBoundary();
-            throw error("constante char deve conter exatamente um caractere e fechar com aspas simples",
-                    startLine, startColumn, isAtEnd());
+        if (isEnd() || peek() != '\'') {
+            skipUntilQuote();
+            throw new LexicalException("constante char deve conter exatamente um caractere e fechar com aspas simples",
+                    startLine, startColumn, isEnd());
         }
-        advance();
-        return new Token(TokenType.CHAR_CONST, String.valueOf(value),
-                startLine, startColumn, printable(value));
+        next(); // aspa de fechamento
+        String text = String.valueOf(value);
+        if (value == '\t') {
+            text = "\\t";
+        }
+        return new Token(TokenType.CHAR_CONST, String.valueOf(value), startLine, startColumn, text);
     }
 
-    private Token scanLiteral(int startLine, int startColumn) {
-        int contentStart = index;
-        boolean invalidAscii = false;
-        while (!isAtEnd() && peek() != '"' && peek() != '\n' && peek() != '\r') {
-            char c = advance();
-            if (!isAscii(c)) {
-                invalidAscii = true;
+    // literal ::= " caractere* "   (a primeira aspa ja foi lida)
+    private Token readLiteral(int startLine, int startColumn) {
+        int contentStart = pos;
+        boolean hasNonAscii = false;
+        while (!isEnd() && peek() != '"' && peek() != '\n' && peek() != '\r') {
+            char c = next();
+            if (c > 127) {
+                hasNonAscii = true;
             }
         }
 
-        if (isAtEnd()) {
-            throw error("literal não foi fechado com aspas duplas",
+        if (isEnd()) {
+            throw new LexicalException("literal não foi fechado com aspas duplas",
                     startLine, startColumn, true);
         }
         if (peek() == '\n' || peek() == '\r') {
-            advance();
-            throw error("literal não pode conter quebra de linha e não foi fechado",
+            next();
+            throw new LexicalException("literal não pode conter quebra de linha e não foi fechado",
                     startLine, startColumn, false);
         }
 
-        String value = source.substring(contentStart, index);
-        advance();
-        if (invalidAscii) {
-            throw error("literal contém caractere fora da tabela ASCII: \""
-                    + printable(value) + "\"", startLine, startColumn, false);
+        String value = source.substring(contentStart, pos);
+        next(); // aspa de fechamento
+        if (hasNonAscii) {
+            throw new LexicalException("literal contém caractere fora da tabela ASCII: \"" + value + "\"",
+                    startLine, startColumn, false);
         }
         return new Token(TokenType.LITERAL, value, startLine, startColumn, value);
     }
 
-    private void consumeUntilCharBoundary() {
-        while (!isAtEnd() && peek() != '\'' && peek() != '\n' && peek() != '\r') {
-            advance();
+    // usado para descartar o resto de uma constante char com erro
+    private void skipUntilQuote() {
+        while (!isEnd() && peek() != '\'' && peek() != '\n' && peek() != '\r') {
+            next();
         }
-        if (!isAtEnd()) {
-            advance();
-        }
-    }
-
-    private void consumeUnicodeWordTail() {
-        while (!isAtEnd() && (Character.isLetterOrDigit(peek()) || peek() == '_')) {
-            advance();
+        if (!isEnd()) {
+            next();
         }
     }
 
-    private Token token(TokenType type, int start, int startLine, int startColumn,
-                        String attribute) {
-        return new Token(type, source.substring(start, index), startLine, startColumn, attribute);
+    // usado para descartar o resto de uma palavra com erro
+    private void skipWord() {
+        while (!isEnd() && (Character.isLetterOrDigit(peek()) || peek() == '_')) {
+            next();
+        }
     }
 
-    private boolean match(char expected) {
-        if (isAtEnd() || peek() != expected) {
+    private Token makeToken(TokenType type, int start, int startLine, int startColumn) {
+        return new Token(type, source.substring(start, pos), startLine, startColumn, null);
+    }
+
+    // se o proximo caractere for o esperado, consome ele e retorna true
+    private boolean nextIs(char expected) {
+        if (isEnd() || peek() != expected) {
             return false;
         }
-        advance();
+        next();
         return true;
     }
 
     private char peek() {
-        return source.charAt(index);
+        return source.charAt(pos);
     }
 
     private char peekNext() {
-        if (index + 1 >= source.length()) {
+        if (pos + 1 >= source.length()) {
             return '\0';
         }
-        return source.charAt(index + 1);
+        return source.charAt(pos + 1);
     }
 
-    private char advance() {
-        char c = source.charAt(index++);
+    // consome um caractere e atualiza linha e coluna
+    private char next() {
+        char c = source.charAt(pos);
+        pos++;
         if (c == '\r') {
-            if (!isAtEnd() && source.charAt(index) == '\n') {
-                index++;
+            // \r\n (Windows) conta como uma quebra de linha so
+            if (!isEnd() && source.charAt(pos) == '\n') {
+                pos++;
             }
             line++;
             column = 1;
@@ -293,42 +331,15 @@ public final class Lexer {
         return c;
     }
 
-    private boolean isAtEnd() {
-        return index >= source.length();
+    private boolean isEnd() {
+        return pos >= source.length();
     }
 
-    private static boolean isWhitespace(char c) {
-        return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
+    private boolean isLetter(char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
     }
 
-    private static boolean isAsciiLetter(char c) {
-        return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z';
-    }
-
-    private static boolean isAsciiDigit(char c) {
+    private boolean isDigit(char c) {
         return c >= '0' && c <= '9';
     }
-
-    private static boolean isAscii(char c) {
-        return c <= 127 && c != '\n' && c != '\r';
-    }
-
-    private static String printable(char c) {
-        return switch (c) {
-            case '\n' -> "\\n";
-            case '\r' -> "\\r";
-            case '\t' -> "\\t";
-            default -> Character.toString(c);
-        };
-    }
-
-    private static String printable(String value) {
-        return value.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
-    }
-
-    private static LexicalException error(String message, int line, int column,
-                                          boolean atEndOfFile) {
-        return new LexicalException(message, line, column, atEndOfFile);
-    }
 }
-

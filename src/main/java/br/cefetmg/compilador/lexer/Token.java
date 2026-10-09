@@ -1,55 +1,52 @@
 package br.cefetmg.compilador.lexer;
 
-import java.util.Objects;
-
-/** Token imutável com lexema, posição e atributo opcional. */
-public final class Token {
-    private final TokenType type;
-    private final String lexeme;
-    private final int line;
-    private final int column;
-    private final String attribute;
+public class Token {
+    private TokenType type;
+    private String lexeme;
+    private int line;
+    private int column;
+    private String attribute; // pode ser null quando o token nao tem atributo
 
     public Token(TokenType type, String lexeme, int line, int column, String attribute) {
-        this.type = Objects.requireNonNull(type);
-        this.lexeme = Objects.requireNonNull(lexeme);
+        this.type = type;
+        this.lexeme = lexeme;
         this.line = line;
         this.column = column;
         this.attribute = attribute;
     }
 
-    public TokenType type() {
+    public TokenType getType() {
         return type;
     }
 
-    public String lexeme() {
+    public String getLexeme() {
         return lexeme;
     }
 
-    public int line() {
+    public int getLine() {
         return line;
     }
 
-    public int column() {
+    public int getColumn() {
         return column;
     }
 
-    public String attribute() {
+    public String getAttribute() {
         return attribute;
     }
 
+    // formato: <TIPO, atributo>  lexema="..." linha=X coluna=Y
     public String format() {
-        String escaped = lexeme
-                .replace("\\", "\\\\")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t")
-                .replace("\"", "\\\"");
-        String pair = attribute == null
-                ? "<" + type + ">"
-                : "<" + type + ", " + attribute + ">";
-        return String.format("%-28s lexema=\"%s\" linha=%d coluna=%d",
-                pair, escaped, line, column);
+        String pair;
+        if (attribute == null) {
+            pair = "<" + type + ">";
+        } else {
+            pair = "<" + type + ", " + attribute + ">";
+        }
+        String text = lexeme.replace("\\", "\\\\");
+        text = text.replace("\t", "\\t");
+        text = text.replace("\"", "\\\"");
+        return String.format("%-28s lexema=\"%s\" linha=%d coluna=%d", pair, text, line, column);
     }
 
     @Override
@@ -57,4 +54,3 @@ public final class Token {
         return format();
     }
 }
-

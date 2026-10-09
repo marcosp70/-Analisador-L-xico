@@ -4,14 +4,12 @@ import br.cefetmg.compilador.lexer.Token;
 import br.cefetmg.compilador.lexer.TokenType;
 import br.cefetmg.compilador.symbols.Symbol;
 
+import java.util.ArrayList;
 import java.util.List;
 
-/** Testes sem bibliotecas externas, executáveis com java -ea. */
-public final class LexerSelfTest {
-    private static int executed;
-
-    private LexerSelfTest() {
-    }
+// Testes simples, sem JUnit. Rodar pelo scripts/test.ps1
+public class LexerSelfTest {
+    private static int executed = 0;
 
     public static void main(String[] args) {
         testAllTokenFamilies();
@@ -32,8 +30,11 @@ public final class LexerSelfTest {
         String source = "program p begin a=10; b=2.5; c='X'; write(\"ok\"); "
                 + "if a>=1 && a!=2 || !a==3 then a=a+1-2*3/4%2 end end.";
         AnalysisResult result = analyze(source, false);
-        assertTrue(result.successful(), "famílias de tokens deveriam ser válidas");
-        List<TokenType> types = result.tokens().stream().map(Token::type).toList();
+        assertTrue(result.isSuccess(), "famílias de tokens deveriam ser válidas");
+        List<TokenType> types = new ArrayList<>();
+        for (Token token : result.getTokens()) {
+            types.add(token.getType());
+        }
         assertTrue(types.containsAll(List.of(TokenType.INTEGER_CONST, TokenType.FLOAT_CONST,
                 TokenType.CHAR_CONST, TokenType.LITERAL, TokenType.GREATER_EQUAL,
                 TokenType.AND, TokenType.NOT_EQUAL, TokenType.OR, TokenType.NOT,
@@ -44,10 +45,10 @@ public final class LexerSelfTest {
 
     private static void testCommentsAndLocations() {
         AnalysisResult result = analyze("{* comentário } com *\n multilinha *}\nprogram p", false);
-        assertTrue(result.successful(), "comentário fechado deveria ser ignorado");
-        Token program = result.tokens().get(0);
-        assertEquals(3, program.line(), "linha após comentário");
-        assertEquals(1, program.column(), "coluna após comentário");
+        assertTrue(result.isSuccess(), "comentário fechado deveria ser ignorado");
+        Token program = result.getTokens().get(0);
+        assertEquals(3, program.getLine(), "linha após comentário");
+        assertEquals(1, program.getColumn(), "coluna após comentário");
     }
 
     private static void testCommentWithoutAsterisk() {
@@ -56,12 +57,15 @@ public final class LexerSelfTest {
 
     private static void testReservedWordsAndSymbolDeduplication() {
         AnalysisResult result = analyze("program program nome nome Nome _var", false);
-        long identifiers = result.symbolTable().symbols().stream()
-                .filter(s -> s.category() == Symbol.Category.IDENTIFICADOR)
-                .count();
-        assertEquals(3L, identifiers, "identificadores únicos e case-sensitive");
-        assertEquals(TokenType.PROGRAM, result.tokens().get(0).type(), "palavra reservada");
-        assertEquals(TokenType.IDENTIFIER, result.tokens().get(2).type(), "identificador");
+        int identifiers = 0;
+        for (Symbol s : result.getSymbolTable().getSymbols()) {
+            if (s.getCategory().equals(Symbol.IDENTIFICADOR)) {
+                identifiers++;
+            }
+        }
+        assertEquals(3, identifiers, "identificadores únicos e case-sensitive");
+        assertEquals(TokenType.PROGRAM, result.getTokens().get(0).getType(), "palavra reservada");
+        assertEquals(TokenType.IDENTIFIER, result.getTokens().get(2).getType(), "identificador");
     }
 
     private static void testMalformedNumericIdentifier() {
@@ -82,7 +86,7 @@ public final class LexerSelfTest {
 
     private static void testInvalidOperators() {
         AnalysisResult result = analyze("| &", true);
-        assertEquals(2, result.errors().size(), "operadores incompletos");
+        assertEquals(2, result.getErrors().size(), "operadores incompletos");
     }
 
     private static void testColonIsNotInTheLanguage() {
@@ -91,14 +95,14 @@ public final class LexerSelfTest {
 
     private static void testAsciiRestriction() {
         AnalysisResult result = analyze("pontuação \"Perímetro\"", true);
-        assertEquals(2, result.errors().size(), "restrição ASCII");
+        assertEquals(2, result.getErrors().size(), "restrição ASCII");
     }
 
     private static void assertError(String source, String expectedMessagePart) {
         AnalysisResult result = analyze(source, false);
-        assertTrue(!result.successful(), "era esperado erro para: " + source);
-        assertTrue(result.errors().get(0).getMessage().contains(expectedMessagePart),
-                "mensagem inesperada: " + result.errors().get(0).getMessage());
+        assertTrue(!result.isSuccess(), "era esperado erro para: " + source);
+        assertTrue(result.getErrors().get(0).getMessage().contains(expectedMessagePart),
+                "mensagem inesperada: " + result.getErrors().get(0).getMessage());
     }
 
     private static AnalysisResult analyze(String source, boolean allErrors) {
