@@ -16,8 +16,8 @@ else
 if (b>c) then
 maior = b;
 else
-maior = c
 end
+maior = c
 end;
 write("Maior valor: "");
 write (maior);
@@ -25,4 +25,3 @@ write (" Continuar?(S/N) ");
 read(outro);
 until (opc == 'N' || opc == 'n)
 end.
-

@@ -1,6 +1,8 @@
 program teste2
- a, b, c1 = int;
- d, _var: float;
+
+     a, b, c1 = int;
+     d, _var: float;
+
   teste2 = 1;
   Read (a);
   b = a * a;
