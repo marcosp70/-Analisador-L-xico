@@ -1,5 +1,5 @@
-{ Teste adicional de identificadores, caixa e comentário multilinha
-  A tabela deve diferenciar valor, Valor e _valor2. }
+{* Teste adicional de identificadores, caixa e comentário multilinha
+  A tabela deve diferenciar valor, Valor e _valor2. *}
 program teste6b
 valor, Valor, _valor2 = int;
 letra = char;

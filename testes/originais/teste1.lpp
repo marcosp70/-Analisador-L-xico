@@ -9,7 +9,7 @@ begin
   write("Entre com a base do retangulo:");
   read(base);
   area = base * altura;
-  perimetro = 2base + 2altura;
+  perimetro = 2*base + 2*altura;
   write "Area: ";
   write (area);
   write ("Perímetro: ");

@@ -11,12 +11,11 @@ New-Item -ItemType Directory -Force $resultsRoot | Out-Null
 
 $scenarios = @(
     @('teste1_00_original', 'testes\originais\teste1.lpp'),
-    @('teste1_01_corrige_primeiro_dois_pontos', 'testes\correcoes\teste1_passo1.lpp'),
-    @('teste1_02_corrige_segundo_dois_pontos', 'testes\correcoes\teste1_passo2.lpp'),
-    @('teste1_03_corrige_1a', 'testes\correcoes\teste1_passo3.lpp'),
-    @('teste1_04_corrige_2base', 'testes\correcoes\teste1_passo4.lpp'),
-    @('teste1_05_corrige_2altura', 'testes\correcoes\teste1_passo5.lpp'),
-    @('teste1_06_corrigido', 'testes\corrigidos\teste1_corrigido.lpp'),
+    @('teste1_01_fecha_comentario', 'testes\correcoes\teste1_passo1.lpp'),
+    @('teste1_02_corrige_primeiro_dois_pontos', 'testes\correcoes\teste1_passo2.lpp'),
+    @('teste1_03_corrige_segundo_dois_pontos', 'testes\correcoes\teste1_passo3.lpp'),
+    @('teste1_04_corrige_1a', 'testes\correcoes\teste1_passo4.lpp'),
+    @('teste1_05_corrigido', 'testes\corrigidos\teste1_corrigido.lpp'),
     @('teste2_00_original', 'testes\originais\teste2.lpp'),
     @('teste2_01_corrige_1c', 'testes\correcoes\teste2_passo1.lpp'),
     @('teste2_02_corrige_primeiro_dois_pontos', 'testes\correcoes\teste2_passo2.lpp'),
@@ -36,7 +35,8 @@ $scenarios = @(
     @('teste5_00_original', 'testes\originais\teste5.lpp'),
     @('teste5_01_corrige_primeiro_dois_pontos', 'testes\correcoes\teste5_passo1.lpp'),
     @('teste5_02_corrige_segundo_dois_pontos', 'testes\correcoes\teste5_passo2.lpp'),
-    @('teste5_03_corrigido', 'testes\corrigidos\teste5_corrigido.lpp'),
+    @('teste5_03_corrige_aspas_duplas', 'testes\correcoes\teste5_passo3.lpp'),
+    @('teste5_04_corrigido', 'testes\corrigidos\teste5_corrigido.lpp'),
     @('teste6a_adicional', 'testes\adicionais\teste6a_todos_tokens.lpp'),
     @('teste6b_adicional', 'testes\adicionais\teste6b_case_sensitive.lpp')
 )

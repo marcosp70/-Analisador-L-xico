@@ -85,7 +85,7 @@ public final class Lexer {
             case '(' -> token(TokenType.LEFT_PAREN, start, startLine, startColumn, null);
             case ')' -> token(TokenType.RIGHT_PAREN, start, startLine, startColumn, null);
             case '.' -> token(TokenType.DOT, start, startLine, startColumn, null);
-            case '}' -> throw error("fechamento de comentário '}' sem abertura",
+            case '{' -> throw error("comentário deve começar com '{*'",
                     startLine, startColumn, false);
             default -> throw error("caractere não reconhecido: '" + printable(c) + "'",
                     startLine, startColumn, false);
@@ -99,17 +99,19 @@ public final class Lexer {
             while (!isAtEnd() && isWhitespace(peek())) {
                 advance();
             }
-            if (!isAtEnd() && peek() == '{') {
+            if (!isAtEnd() && peek() == '{' && peekNext() == '*') {
                 int startLine = line;
                 int startColumn = column;
                 advance();
-                while (!isAtEnd() && peek() != '}') {
+                advance();
+                while (!isAtEnd() && !(peek() == '*' && peekNext() == '}')) {
                     advance();
                 }
                 if (isAtEnd()) {
-                    throw error("comentário iniciado com '{' não foi fechado com '}'",
+                    throw error("comentário iniciado com '{*' não foi fechado com '*}'",
                             startLine, startColumn, true);
                 }
+                advance();
                 advance();
                 repeat = true;
             }
@@ -261,6 +263,13 @@ public final class Lexer {
 
     private char peek() {
         return source.charAt(index);
+    }
+
+    private char peekNext() {
+        if (index + 1 >= source.length()) {
+            return '\0';
+        }
+        return source.charAt(index + 1);
     }
 
     private char advance() {

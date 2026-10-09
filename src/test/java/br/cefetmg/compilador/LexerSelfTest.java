@@ -16,6 +16,7 @@ public final class LexerSelfTest {
     public static void main(String[] args) {
         testAllTokenFamilies();
         testCommentsAndLocations();
+        testCommentWithoutAsterisk();
         testReservedWordsAndSymbolDeduplication();
         testMalformedNumericIdentifier();
         testMalformedFloat();
@@ -42,11 +43,15 @@ public final class LexerSelfTest {
     }
 
     private static void testCommentsAndLocations() {
-        AnalysisResult result = analyze("{ comentário\n multilinha }\nprogram p", false);
+        AnalysisResult result = analyze("{* comentário } com *\n multilinha *}\nprogram p", false);
         assertTrue(result.successful(), "comentário fechado deveria ser ignorado");
         Token program = result.tokens().get(0);
         assertEquals(3, program.line(), "linha após comentário");
         assertEquals(1, program.column(), "coluna após comentário");
+    }
+
+    private static void testCommentWithoutAsterisk() {
+        assertError("{ comentário }", "comentário deve começar com '{*'");
     }
 
     private static void testReservedWordsAndSymbolDeduplication() {
@@ -72,7 +77,7 @@ public final class LexerSelfTest {
     }
 
     private static void testUnclosedComment() {
-        assertError("{ comentário", "comentário iniciado");
+        assertError("{* comentário }", "comentário iniciado");
     }
 
     private static void testInvalidOperators() {
