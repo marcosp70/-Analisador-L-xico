@@ -23,5 +23,5 @@ write("Maior valor: "");
 write (maior);
 write (" Continuar?(S/N) ");
 read(outro);
-until (opc == 'N' || opc == 'n')
+until (opc == 'N' || opc == 'n)
 end.

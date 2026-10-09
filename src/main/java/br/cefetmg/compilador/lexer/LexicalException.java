@@ -1,33 +1,31 @@
 package br.cefetmg.compilador.lexer;
 
-/** Erro léxico com a posição inicial e indicação de fim de arquivo. */
-public final class LexicalException extends RuntimeException {
-    private final int line;
-    private final int column;
-    private final boolean atEndOfFile;
+// Erro lexico com a linha e a coluna onde o lexema comecou
+public class LexicalException extends RuntimeException {
+    private int line;
+    private int column;
+    private boolean endOfFile; // true quando o erro so foi percebido no fim do arquivo
 
-    public LexicalException(String message, int line, int column, boolean atEndOfFile) {
+    public LexicalException(String message, int line, int column, boolean endOfFile) {
         super(message);
         this.line = line;
         this.column = column;
-        this.atEndOfFile = atEndOfFile;
+        this.endOfFile = endOfFile;
     }
 
-    public int line() {
+    public int getLine() {
         return line;
     }
 
-    public int column() {
+    public int getColumn() {
         return column;
     }
 
-    public boolean atEndOfFile() {
-        return atEndOfFile;
+    public boolean isEndOfFile() {
+        return endOfFile;
     }
 
     public String format() {
-        return String.format("Erro léxico na linha %d, coluna %d: %s",
-                line, column, getMessage());
+        return "Erro léxico na linha " + line + ", coluna " + column + ": " + getMessage();
     }
 }
-

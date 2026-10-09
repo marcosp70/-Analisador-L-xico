@@ -25,4 +25,3 @@ write (" Continuar?(S/N) ");
 read(outro);
 until (opc == 'N' || opc == 'n')
 end.
-

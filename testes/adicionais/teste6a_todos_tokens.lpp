@@ -1,4 +1,4 @@
-{ Teste adicional com todos os grupos de tokens }
+{* Teste adicional com todos os grupos de tokens *}
 program teste6a
 numero, resto = int;
 media, metade = float;

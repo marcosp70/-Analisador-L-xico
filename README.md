@@ -15,7 +15,7 @@ Implementação manual de um analisador léxico e de uma tabela de símbolos par
 - instalação dos símbolos em tabela hash com ordem de inserção;
 - registro de linha e coluna de cada token;
 - mensagens de erro léxico com a posição do problema;
-- comentários delimitados por `{` e `}`, inclusive em várias linhas;
+- comentários delimitados por `{*` e `*}`, inclusive em várias linhas;
 - suporte opcional à procura de vários erros com `--all-errors`;
 - diferenciação entre maiúsculas e minúsculas;
 - testes automatizados sem dependências externas.
@@ -76,7 +76,7 @@ O primeiro comando compila o projeto e gera o JAR. O segundo realiza o build e e
 - ponto flutuante: `[0-9]+\.[0-9]+`;
 - caractere: um caractere ASCII entre aspas simples;
 - literal: caracteres ASCII entre aspas duplas, sem quebra de linha;
-- comentário: começa em `{` e termina em `}`;
+- comentário: começa em `{*` e termina em `*}`;
 - palavras reservadas são *case-sensitive*;
 - `&&` e `||` devem aparecer completos;
 - declarações utilizam `=` conforme `decl ::= ident-list "=" type`;
